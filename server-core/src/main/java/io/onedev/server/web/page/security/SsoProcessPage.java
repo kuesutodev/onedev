@@ -176,9 +176,11 @@ public class SsoProcessPage extends SimplePage {
 						if (user.getType() != ORDINARY || user.isDisabled()) {
 							ssoAccountService.delete(ssoAccount);
 						} else {
-							// Skip email reconciliation for Web3 wallet placeholder emails
-							// These are auto-generated as address@wallet.local and shouldn't be synced
-							if (authenticated.getEmail() != null && !authenticated.getEmail().endsWith("@wallet.local")) {
+							// Skip email reconciliation for wallet-based placeholder emails
+							// These are auto-generated as address@evm.local or address@solana.local
+							if (authenticated.getEmail() != null 
+									&& !authenticated.getEmail().endsWith("@evm.local") 
+									&& !authenticated.getEmail().endsWith("@solana.local")) {
 								var emailAddress = emailAddressService.findByValue(authenticated.getEmail());
 								if (emailAddress == null) {
 									emailAddress = new EmailAddress();

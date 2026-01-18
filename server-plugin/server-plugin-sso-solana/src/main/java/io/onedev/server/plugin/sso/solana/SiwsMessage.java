@@ -1,8 +1,7 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.solana;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -10,23 +9,37 @@ import java.util.regex.Pattern;
 import org.apache.shiro.authc.AuthenticationException;
 
 /**
- * Represents a Sign-In with Ethereum (SIWE) message following EIP-4361.
+ * Represents a Sign-In with Solana (SIWS) message.
  * 
- * @see <a href="https://eips.ethereum.org/EIPS/eip-4361">EIP-4361: Sign-In with Ethereum</a>
+ * Format follows the SIWS specification modeled after EIP-4361:
+ * <pre>
+ * ${domain} wants you to sign in with your Solana account:
+ * ${address}
+ * 
+ * ${statement}
+ * 
+ * URI: ${uri}
+ * Version: ${version}
+ * Chain ID: ${chainId}
+ * Nonce: ${nonce}
+ * Issued At: ${issuedAt}
+ * [Expiration Time: ${expirationTime}]
+ * </pre>
+ * 
+ * @see <a href="https://github.com/phantom/sign-in-with-solana">Sign-In with Solana</a>
  */
-public class SiweMessage implements Serializable {
+public class SiwsMessage implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
-	// Regex pattern for parsing SIWE messages
-	// Made more flexible to handle different line endings and optional fields
-	private static final Pattern SIWE_PATTERN = Pattern.compile(
-		"^(?<domain>[^\\s]+) wants you to sign in with your Ethereum account:\\s*" +
-		"(?<address>0x[a-fA-F0-9]{40})\\s+" +
+	// Regex pattern for parsing SIWS messages
+	private static final Pattern SIWS_PATTERN = Pattern.compile(
+		"^(?<domain>[^\\s]+) wants you to sign in with your Solana account:\\s*" +
+		"(?<address>[1-9A-HJ-NP-Za-km-z]{32,44})\\s+" +
 		"(?<statement>.*?)\\s+" +
 		"URI: (?<uri>[^\\s]+)\\s+" +
 		"Version: (?<version>\\d+)\\s+" +
-		"Chain ID: (?<chainId>\\d+)\\s+" +
+		"Chain ID: (?<chainId>[a-zA-Z:]+)\\s+" +
 		"Nonce: (?<nonce>[a-zA-Z0-9]+)\\s+" +
 		"Issued At: (?<issuedAt>[^\\n]+)" +
 		"(?:\\s+Expiration Time: (?<expirationTime>[^\\n]+))?\\s*$",
@@ -38,19 +51,19 @@ public class SiweMessage implements Serializable {
 	private String statement;
 	private String uri;
 	private String version;
-	private long chainId;
+	private String chainId;
 	private String nonce;
 	private Instant issuedAt;
 	private Instant expirationTime;
 
-	public SiweMessage() {
+	public SiwsMessage() {
 	}
 
 	/**
-	 * Creates a new SIWE message with the given parameters.
+	 * Creates a new SIWS message with the given parameters.
 	 */
-	public SiweMessage(String domain, String address, String statement, String uri,
-					   String version, long chainId, String nonce, 
+	public SiwsMessage(String domain, String address, String statement, String uri,
+					   String version, String chainId, String nonce, 
 					   Instant issuedAt, Instant expirationTime) {
 		this.domain = domain;
 		this.address = address;
@@ -64,41 +77,37 @@ public class SiweMessage implements Serializable {
 	}
 
 	/**
-	 * Parses a SIWE message string into a SiweMessage object.
-	 * 
-	 * @param message The raw SIWE message string
-	 * @return Parsed SiweMessage object
-	 * @throws AuthenticationException if the message format is invalid
+	 * Parses a SIWS message string into a SiwsMessage object.
 	 */
-	public static SiweMessage parse(String message) throws AuthenticationException {
+	public static SiwsMessage parse(String message) throws AuthenticationException {
 		if (message == null || message.isBlank()) {
-			throw new AuthenticationException("SIWE message cannot be empty");
+			throw new AuthenticationException("SIWS message cannot be empty");
 		}
 
-		Matcher matcher = SIWE_PATTERN.matcher(message.trim());
+		Matcher matcher = SIWS_PATTERN.matcher(message.trim());
 		if (!matcher.matches()) {
-			throw new AuthenticationException("Invalid SIWE message format");
+			throw new AuthenticationException("Invalid SIWS message format");
 		}
 
 		try {
-			SiweMessage siwe = new SiweMessage();
-			siwe.domain = matcher.group("domain");
-			siwe.address = matcher.group("address");
-			siwe.statement = matcher.group("statement");
-			siwe.uri = matcher.group("uri");
-			siwe.version = matcher.group("version");
-			siwe.chainId = Long.parseLong(matcher.group("chainId"));
-			siwe.nonce = matcher.group("nonce");
-			siwe.issuedAt = parseTimestamp(matcher.group("issuedAt"));
+			SiwsMessage siws = new SiwsMessage();
+			siws.domain = matcher.group("domain");
+			siws.address = matcher.group("address");
+			siws.statement = matcher.group("statement");
+			siws.uri = matcher.group("uri");
+			siws.version = matcher.group("version");
+			siws.chainId = matcher.group("chainId");
+			siws.nonce = matcher.group("nonce");
+			siws.issuedAt = parseTimestamp(matcher.group("issuedAt"));
 			
 			String expTime = matcher.group("expirationTime");
 			if (expTime != null && !expTime.isBlank()) {
-				siwe.expirationTime = parseTimestamp(expTime);
+				siws.expirationTime = parseTimestamp(expTime);
 			}
 
-			return siwe;
-		} catch (NumberFormatException e) {
-			throw new AuthenticationException("Invalid chain ID in SIWE message");
+			return siws;
+		} catch (Exception e) {
+			throw new AuthenticationException("Failed to parse SIWS message: " + e.getMessage());
 		}
 	}
 
@@ -106,37 +115,33 @@ public class SiweMessage implements Serializable {
 		try {
 			return Instant.parse(timestamp.trim());
 		} catch (DateTimeParseException e) {
-			throw new AuthenticationException("Invalid timestamp format in SIWE message: " + timestamp);
+			throw new AuthenticationException("Invalid timestamp format in SIWS message: " + timestamp);
 		}
 	}
 
 	/**
-	 * Converts this SIWE message to its string representation for signing.
+	 * Converts this SIWS message to its string representation for signing.
 	 */
 	public String toMessage() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(domain).append(" wants you to sign in with your Ethereum account:\n");
+		sb.append(domain).append(" wants you to sign in with your Solana account:\n");
 		sb.append(address).append("\n\n");
 		sb.append(statement).append("\n\n");
 		sb.append("URI: ").append(uri).append("\n");
 		sb.append("Version: ").append(version).append("\n");
 		sb.append("Chain ID: ").append(chainId).append("\n");
 		sb.append("Nonce: ").append(nonce).append("\n");
-		sb.append("Issued At: ").append(DateTimeFormatter.ISO_INSTANT.format(issuedAt));
+		sb.append("Issued At: ").append(issuedAt.toString());
 		
 		if (expirationTime != null) {
-			sb.append("\nExpiration Time: ").append(DateTimeFormatter.ISO_INSTANT.format(expirationTime));
+			sb.append("\nExpiration Time: ").append(expirationTime.toString());
 		}
 		
 		return sb.toString();
 	}
 
 	/**
-	 * Validates the SIWE message against expected values.
-	 * 
-	 * @param expectedNonce The nonce that was issued by the server
-	 * @param expectedDomain The expected domain (server hostname)
-	 * @throws AuthenticationException if validation fails
+	 * Validates the SIWS message against expected values.
 	 */
 	public void validate(String expectedNonce, String expectedDomain) throws AuthenticationException {
 		// Validate nonce
@@ -151,12 +156,12 @@ public class SiweMessage implements Serializable {
 
 		// Validate version
 		if (!"1".equals(this.version)) {
-			throw new AuthenticationException("Unsupported SIWE version: " + this.version);
+			throw new AuthenticationException("Unsupported SIWS version: " + this.version);
 		}
 
-		// Validate address format
+		// Validate address format (Base58, 32-44 chars)
 		if (!isValidAddress(this.address)) {
-			throw new AuthenticationException("Invalid Ethereum address format");
+			throw new AuthenticationException("Invalid Solana address format");
 		}
 
 		// Validate timestamps
@@ -172,10 +177,14 @@ public class SiweMessage implements Serializable {
 	}
 
 	/**
-	 * Validates that the address is a valid Ethereum address format.
+	 * Validates that the address is a valid Solana address format (Base58, 32-44 chars).
 	 */
 	private static boolean isValidAddress(String address) {
-		return address != null && address.matches("^0x[a-fA-F0-9]{40}$");
+		if (address == null || address.length() < 32 || address.length() > 44) {
+			return false;
+		}
+		// Base58 character set (no 0, O, I, l)
+		return address.matches("^[1-9A-HJ-NP-Za-km-z]+$");
 	}
 
 	// Getters
@@ -200,7 +209,7 @@ public class SiweMessage implements Serializable {
 		return version;
 	}
 
-	public long getChainId() {
+	public String getChainId() {
 		return chainId;
 	}
 
@@ -238,7 +247,7 @@ public class SiweMessage implements Serializable {
 		this.version = version;
 	}
 
-	public void setChainId(long chainId) {
+	public void setChainId(String chainId) {
 		this.chainId = chainId;
 	}
 

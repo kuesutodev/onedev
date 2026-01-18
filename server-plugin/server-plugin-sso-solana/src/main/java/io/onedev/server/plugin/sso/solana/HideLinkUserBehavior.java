@@ -1,4 +1,4 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.solana;
 
 import org.apache.wicket.Component;
 import org.apache.wicket.behavior.Behavior;
@@ -11,7 +11,7 @@ import io.onedev.server.web.page.security.SsoProcessPage;
 
 /**
  * Behavior that injects CSS to hide the "Link Existing User" tab on the SSO process page
- * when the user is signing in via Web3 wallet.
+ * when the user is signing in via Solana wallet.
  */
 public class HideLinkUserBehavior extends Behavior {
 
@@ -21,7 +21,7 @@ public class HideLinkUserBehavior extends Behavior {
 	public void renderHead(Component component, IHeaderResponse response) {
 		super.renderHead(component, response);
 		
-		// Check if this is a Web3 SSO provider by examining the page parameters
+		// Check if this is a Solana SSO provider by examining the page parameters
 		if (component instanceof SsoProcessPage) {
 			SsoProcessPage page = (SsoProcessPage) component;
 			String providerName = page.getPageParameters().get("provider").toOptionalString();
@@ -29,16 +29,16 @@ public class HideLinkUserBehavior extends Behavior {
 			if (providerName != null) {
 				try {
 					var provider = OneDev.getInstance(SsoProviderService.class).find(providerName);
-					if (provider != null && provider.getConnector() instanceof Web3Connector) {
+					if (provider != null && provider.getConnector() instanceof SolanaConnector) {
 						// Hide the entire tabs section since we only have one option
 						String css = """
-							/* Hide entire tabs for Web3 SSO - only one option */
+							/* Hide entire tabs for Solana SSO - only one option */
 							ul.tabs.nav.nav-tabs,
 							ul.tabs {
 								display: none !important;
 							}
 						""";
-						response.render(CssHeaderItem.forCSS(css, "web3-hide-link-user-css"));
+						response.render(CssHeaderItem.forCSS(css, "solana-hide-link-user-css"));
 					}
 				} catch (Exception e) {
 					// Provider not found or error, skip hiding

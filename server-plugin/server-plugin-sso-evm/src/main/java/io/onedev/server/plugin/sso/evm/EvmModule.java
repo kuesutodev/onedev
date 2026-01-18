@@ -1,4 +1,4 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.evm;
 
 import java.util.Collection;
 
@@ -16,16 +16,16 @@ import io.onedev.server.web.page.security.LoginPage;
 import io.onedev.server.web.page.security.SsoProcessPage;
 
 /**
- * Guice module for Web3 wallet authentication plugin.
- * Registers Web3Connector as an SsoConnector implementation and mounts the signing page.
+ * Guice module for EVM wallet authentication plugin.
+ * Registers EvmConnector as an SsoConnector implementation and mounts the signing page.
  */
-public class Web3Module extends AbstractPluginModule {
+public class EvmModule extends AbstractPluginModule {
 
 	@Override
 	protected void configure() {
 		super.configure();
 		
-		// Register Web3Connector as an SSO connector implementation
+		// Register EvmConnector as an SSO connector implementation
 		contribute(ImplementationProvider.class, new ImplementationProvider() {
 
 			@Override
@@ -35,14 +35,14 @@ public class Web3Module extends AbstractPluginModule {
 
 			@Override
 			public Collection<Class<?>> getImplementations() {
-				return Sets.newHashSet(Web3Connector.class);
+				return Sets.newHashSet(EvmConnector.class);
 			}
 			
 		});
 		
 		// Register page mount configurator and add behavior to hide password login
 		contribute(WebApplicationConfigurator.class, application -> {
-			application.mountPage("/~web3-signin/${provider}", Web3SigningPage.class);
+			application.mountPage("/~evm-signin/${provider}", EvmSigningPage.class);
 			
 			// Add listener to inject behaviors on pages
 			application.getComponentInstantiationListeners().add(new IComponentInstantiationListener() {

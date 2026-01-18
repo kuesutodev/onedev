@@ -1,4 +1,4 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.solana;
 
 import org.apache.wicket.Component;
 import org.apache.wicket.behavior.Behavior;
@@ -6,7 +6,7 @@ import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
 
 /**
- * Behavior that injects CSS to hide the password login form when Web3 connector
+ * Behavior that injects CSS to hide the password login form when Solana connector
  * has the "Disable Password Login" option enabled.
  */
 public class HidePasswordLoginBehavior extends Behavior {
@@ -17,12 +17,10 @@ public class HidePasswordLoginBehavior extends Behavior {
 	public void renderHead(Component component, IHeaderResponse response) {
 		super.renderHead(component, response);
 		
-		if (Web3Connector.isPasswordLoginDisabled()) {
+		if (SolanaConnector.isPasswordLoginDisabled()) {
 			// Hide the password form and related elements on the login page
-			// Based on LoginPage.html structure: form with password input, signup div, forgetPassword link
 			String css = """
-				/* Hide password login form when Web3-only mode is enabled */
-				/* Hide the form containing password input */
+				/* Hide password login form when Solana-only mode is enabled */
 				form:has(input[type="password"]) {
 					display: none !important;
 				}
@@ -38,19 +36,19 @@ public class HidePasswordLoginBehavior extends Behavior {
 				}
 				
 				.sso::before {
-					content: "Password login is disabled. Please use Web3 wallet to sign in.";
+					content: "Password login is disabled. Please use Solana wallet to sign in.";
 					display: block;
 					padding: 12px 16px;
 					margin-bottom: 20px;
-					background: #e8f4fc;
-					border: 1px solid #3699ff;
+					background: linear-gradient(135deg, rgba(153,69,255,0.1) 0%, rgba(20,241,149,0.1) 100%);
+					border: 1px solid #9945FF;
 					border-radius: 6px;
-					color: #0d6efd;
+					color: #9945FF;
 					text-align: center;
 					font-size: 14px;
 				}
 			""";
-			response.render(CssHeaderItem.forCSS(css, "web3-hide-password-login"));
+			response.render(CssHeaderItem.forCSS(css, "solana-hide-password-login"));
 		}
 	}
 }

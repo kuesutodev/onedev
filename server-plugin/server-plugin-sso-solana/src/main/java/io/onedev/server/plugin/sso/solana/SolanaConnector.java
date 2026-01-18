@@ -1,11 +1,9 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.solana;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
@@ -15,7 +13,6 @@ import javax.validation.constraints.NotEmpty;
 import org.apache.shiro.authc.AuthenticationException;
 import org.apache.wicket.Session;
 import org.apache.wicket.request.cycle.RequestCycle;
-import org.web3j.crypto.Keys;
 
 import io.onedev.server.OneDev;
 import io.onedev.server.annotation.ClassValidating;
@@ -29,23 +26,23 @@ import io.onedev.server.service.SettingService;
 import io.onedev.server.validation.Validatable;
 
 /**
- * SSO Connector for Web3 wallet authentication using Sign-In with Ethereum (SIWE).
+ * SSO Connector for Solana wallet authentication using Sign-In with Solana (SIWS).
  * 
- * This connector allows users to authenticate using their Ethereum wallet (e.g., MetaMask)
+ * This connector allows users to authenticate using their Solana wallet (e.g., Phantom, Solflare)
  * by signing a message with their private key. No external API keys or services are required.
  * 
- * @see <a href="https://eips.ethereum.org/EIPS/eip-4361">EIP-4361: Sign-In with Ethereum</a>
+ * @see <a href="https://github.com/phantom/sign-in-with-solana">Sign-In with Solana</a>
  */
-@Editable(name="Web3 Wallet (SIWE)", order=250, 
-	description="Sign in with Ethereum wallet using EIP-4361 (SIWE). " +
-				"Supports MetaMask and other Web3 wallets. No API keys required.")
+@Editable(name="Solana Wallet (SIWS)", order=260, 
+	description="Sign in with Solana wallet using Sign-In with Solana (SIWS). " +
+				"Supports Phantom, Solflare, and other Solana wallets. No API keys required.")
 @ClassValidating
-public class Web3Connector extends SsoConnector implements Validatable {
+public class SolanaConnector extends SsoConnector implements Validatable {
 
 	private static final long serialVersionUID = 1L;
 
-	private static final String SESSION_ATTR_NONCE = "web3_siwe_nonce";
-	private static final String SESSION_ATTR_DOMAIN = "web3_siwe_domain";
+	private static final String SESSION_ATTR_NONCE = "solana_siws_nonce";
+	private static final String SESSION_ATTR_DOMAIN = "solana_siws_domain";
 
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -53,7 +50,7 @@ public class Web3Connector extends SsoConnector implements Validatable {
 	
 	private int nonceExpirationSeconds = 300;
 	
-	private String allowedChainIds = "1,137,42161,10,56";
+	private String allowedChainIds = "mainnet";
 	
 	private String buttonImageUrl;
 	
@@ -63,12 +60,12 @@ public class Web3Connector extends SsoConnector implements Validatable {
 	
 	private boolean disablePasswordLogin = false;
 
-	public Web3Connector() {
-		buttonImageUrl = "/wicket/resource/" + Web3Connector.class.getName() + "/wallet.svg";
+	public SolanaConnector() {
+		buttonImageUrl = "/wicket/resource/" + SolanaConnector.class.getName() + "/solana.svg";
 	}
 
 	/**
-	 * Checks if any Web3Connector has disabled password login.
+	 * Checks if any SolanaConnector has disabled password login.
 	 * This can be used by the login page to hide the password form.
 	 * 
 	 * @return true if password login should be disabled
@@ -78,9 +75,9 @@ public class Web3Connector extends SsoConnector implements Validatable {
 			var ssoProviderService = OneDev.getInstance(
 				io.onedev.server.service.SsoProviderService.class);
 			for (var provider : ssoProviderService.query()) {
-				if (provider.getConnector() instanceof Web3Connector) {
-					Web3Connector web3 = (Web3Connector) provider.getConnector();
-					if (web3.isDisablePasswordLogin()) {
+				if (provider.getConnector() instanceof SolanaConnector) {
+					SolanaConnector solana = (SolanaConnector) provider.getConnector();
+					if (solana.isDisablePasswordLogin()) {
 						return true;
 					}
 				}
@@ -112,8 +109,8 @@ public class Web3Connector extends SsoConnector implements Validatable {
 		this.nonceExpirationSeconds = nonceExpirationSeconds;
 	}
 
-	@Editable(order=300, description="Comma-separated list of allowed EVM chain IDs, or '*' to allow any chain. " +
-			"Common values: 1 (Ethereum), 137 (Polygon), 42161 (Arbitrum), 10 (Optimism), 56 (BSC)")
+	@Editable(order=300, description="Comma-separated list of allowed Solana chain IDs, or '*' to allow any. " +
+			"Valid values: mainnet, testnet, devnet, localnet")
 	@NotEmpty
 	public String getAllowedChainIds() {
 		return allowedChainIds;
@@ -135,8 +132,8 @@ public class Web3Connector extends SsoConnector implements Validatable {
 	}
 
 	@Editable(order=450, name="Whitelisted Addresses", group="Access Control",
-		description="List of EVM addresses allowed to sign in (one per line). " +
-			"Only used when 'Enable Address Whitelist' is checked. Addresses are case-insensitive.")
+		description="List of Solana addresses allowed to sign in (one per line). " +
+			"Only used when 'Enable Address Whitelist' is checked.")
 	@Multiline
 	public String getWhitelistedAddresses() {
 		return whitelistedAddresses;
@@ -148,7 +145,7 @@ public class Web3Connector extends SsoConnector implements Validatable {
 
 	@Editable(order=500, name="Disable Password Login", group="Access Control",
 		description="When enabled, the password login form will be hidden on the login page. " +
-			"Users will only be able to authenticate via Web3 wallet. " +
+			"Users will only be able to authenticate via Solana wallet. " +
 			"WARNING: Make sure you have at least one admin wallet address whitelisted before enabling this!")
 	public boolean isDisablePasswordLogin() {
 		return disablePasswordLogin;
@@ -170,23 +167,22 @@ public class Web3Connector extends SsoConnector implements Validatable {
 	}
 
 	/**
-	 * Parses the allowed chain IDs from the configuration string.
-	 */
-	/**
 	 * Checks if all chains are allowed (wildcard '*' is used).
 	 */
 	public boolean isAllChainsAllowed() {
 		return allowedChainIds != null && allowedChainIds.trim().equals("*");
 	}
 
-	public List<Long> getParsedAllowedChainIds() {
-		List<Long> chainIds = new ArrayList<>();
+	/**
+	 * Parses the allowed chain IDs from the configuration string.
+	 */
+	public Set<String> getParsedAllowedChainIds() {
+		Set<String> chainIds = new HashSet<>();
 		if (allowedChainIds != null && !isAllChainsAllowed()) {
 			for (String id : allowedChainIds.split(",")) {
-				try {
-					chainIds.add(Long.parseLong(id.trim()));
-				} catch (NumberFormatException e) {
-					// Skip invalid chain IDs
+				String trimmed = id.trim().toLowerCase();
+				if (!trimmed.isEmpty()) {
+					chainIds.add(trimmed);
 				}
 			}
 		}
@@ -194,15 +190,16 @@ public class Web3Connector extends SsoConnector implements Validatable {
 	}
 
 	/**
-	 * Parses the whitelisted addresses into a normalized set (lowercase).
+	 * Parses the whitelisted addresses into a normalized set.
 	 * Returns empty set if no whitelist is configured.
 	 */
 	public Set<String> getParsedWhitelistedAddresses() {
 		Set<String> addresses = new HashSet<>();
 		if (whitelistedAddresses != null && !whitelistedAddresses.isBlank()) {
 			for (String line : whitelistedAddresses.split("\\r?\\n")) {
-				String addr = line.trim().toLowerCase();
-				if (!addr.isEmpty() && addr.startsWith("0x") && addr.length() == 42) {
+				String addr = line.trim();
+				// Solana addresses are Base58, 32-44 characters
+				if (!addr.isEmpty() && addr.length() >= 32 && addr.length() <= 44) {
 					addresses.add(addr);
 				}
 			}
@@ -225,7 +222,7 @@ public class Web3Connector extends SsoConnector implements Validatable {
 		if (whitelist.isEmpty()) {
 			return true; // Empty whitelist = allow all
 		}
-		return whitelist.contains(address.toLowerCase());
+		return whitelist.contains(address);
 	}
 
 	@Override
@@ -242,8 +239,8 @@ public class Web3Connector extends SsoConnector implements Validatable {
 		Session.get().setAttribute(SESSION_ATTR_NONCE, nonce);
 		Session.get().setAttribute(SESSION_ATTR_DOMAIN, domain);
 		
-		// Build URL to the Web3 signing page
-		return serverUrl + "/~web3-signin/" + providerName 
+		// Build URL to the Solana signing page
+		return serverUrl + "/~solana-signin/" + providerName 
 			+ "?nonce=" + nonce 
 			+ "&statement=" + urlEncode(signInStatement)
 			+ "&expiration=" + nonceExpirationSeconds;
@@ -257,12 +254,16 @@ public class Web3Connector extends SsoConnector implements Validatable {
 		// Get message and signature from the request
 		String message = request.getParameter("message");
 		String signature = request.getParameter("signature");
+		String address = request.getParameter("address");
 		
 		if (message == null || message.isBlank()) {
-			throw new AuthenticationException("Missing SIWE message");
+			throw new AuthenticationException("Missing SIWS message");
 		}
 		if (signature == null || signature.isBlank()) {
 			throw new AuthenticationException("Missing signature");
+		}
+		if (address == null || address.isBlank()) {
+			throw new AuthenticationException("Missing wallet address");
 		}
 		
 		// Retrieve stored nonce and domain from session
@@ -273,27 +274,29 @@ public class Web3Connector extends SsoConnector implements Validatable {
 			throw new AuthenticationException("No pending authentication request. Please try again.");
 		}
 		
-		// Parse the SIWE message
-		SiweMessage siwe = SiweMessage.parse(message);
+		// Parse the SIWS message
+		SiwsMessage siws = SiwsMessage.parse(message);
 		
 		// Validate the message
-		siwe.validate(expectedNonce, expectedDomain);
+		siws.validate(expectedNonce, expectedDomain);
 		
 		// Validate chain ID (skip if wildcard '*' is used)
 		if (!isAllChainsAllowed()) {
-			List<Long> allowed = getParsedAllowedChainIds();
-			if (!allowed.isEmpty() && !allowed.contains(siwe.getChainId())) {
-				throw new AuthenticationException("Unsupported blockchain network (Chain ID: " + siwe.getChainId() + ")");
+			Set<String> allowed = getParsedAllowedChainIds();
+			if (!allowed.isEmpty() && !allowed.contains(siws.getChainId().toLowerCase())) {
+				throw new AuthenticationException("Unsupported Solana network (Chain ID: " + siws.getChainId() + ")");
 			}
 		}
 		
-		// Verify the signature
-		if (!SiweVerifier.verify(siwe, signature)) {
+		// Verify the signature using Ed25519
+		if (!SiwsVerifier.verify(message, signature, address)) {
 			throw new AuthenticationException("Invalid signature");
 		}
 		
-		// Get checksummed address
-		String address = Keys.toChecksumAddress(siwe.getAddress());
+		// Verify that the address in message matches the claimed address
+		if (!address.equals(siws.getAddress())) {
+			throw new AuthenticationException("Address mismatch between message and request");
+		}
 		
 		// Check whitelist
 		if (!isAddressWhitelisted(address)) {
@@ -305,25 +308,20 @@ public class Web3Connector extends SsoConnector implements Validatable {
 		Session.get().removeAttribute(SESSION_ATTR_NONCE);
 		Session.get().removeAttribute(SESSION_ATTR_DOMAIN);
 		
-		// Create shortened display name (0x1234...5678)
-		String shortAddress = address.substring(0, 6) + "..." + address.substring(38);
+		// Create shortened display name
+		String shortAddress = address.length() > 8 
+			? address.substring(0, 4) + "..." + address.substring(address.length() - 4)
+			: address;
 		
 		// Generate a wallet-based email to satisfy the system's email requirement
-		// This email is not usable for actual communication but allows account creation
-		// Format: 0x1234abcd@wallet.local (using first 10 chars of address)
-		String walletEmail = address.toLowerCase() + "@wallet.local";
+		// Format: address@solana.local
+		String walletEmail = address + "@solana.local";
 		
 		// Return the authenticated user info
-		// subject = full address (unique identifier)
-		// userName = shortened address for display
-		// email = wallet-based email (allows direct account creation without prompts)
-		// fullName = null
-		// groups = null
-		// sshKeys = null
 		return new SsoAuthenticated(
-			address,        // subject
-			shortAddress,   // userName  
-			walletEmail,    // email - wallet-based placeholder
+			address,        // subject (unique identifier)
+			shortAddress,   // userName (display name)
+			walletEmail,    // email (placeholder)
 			null,           // fullName
 			null,           // groupNames
 			null            // sshKeys
@@ -372,13 +370,11 @@ public class Web3Connector extends SsoConnector implements Validatable {
 	}
 
 	/**
-	 * Validates that an admin user has linked a Web3 account before disabling password login.
-	 * This prevents admins from accidentally locking themselves out.
+	 * Validates that an admin user has linked a Solana account before disabling password login.
 	 */
 	@Override
 	public boolean isValid(ConstraintValidatorContext context) {
 		if (disablePasswordLogin) {
-			// Check if the current user has a Web3 SSO account linked
 			User currentUser = SecurityUtils.getAuthUser();
 			if (currentUser == null) {
 				context.disableDefaultConstraintViolation();
@@ -389,15 +385,15 @@ public class Web3Connector extends SsoConnector implements Validatable {
 				return false;
 			}
 			
-			// Check if user has a Web3 SSO account linked
-			boolean hasWeb3Account = currentUser.getSsoAccounts().stream()
-				.anyMatch(account -> account.getProvider().getConnector() instanceof Web3Connector);
+			// Check if user has a Solana SSO account linked
+			boolean hasSolanaAccount = currentUser.getSsoAccounts().stream()
+				.anyMatch(account -> account.getProvider().getConnector() instanceof SolanaConnector);
 			
-			if (!hasWeb3Account) {
+			if (!hasSolanaAccount) {
 				context.disableDefaultConstraintViolation();
 				context.buildConstraintViolationWithTemplate(
-					"You must link your account to a Web3 wallet before enabling 'Disable Password Login'. " +
-					"First, save this connector without the option enabled, then log in using your Web3 wallet " +
+					"You must link your account to a Solana wallet before enabling 'Disable Password Login'. " +
+					"First, save this connector without the option enabled, then log in using your Solana wallet " +
 					"and link it to your account. After that, you can enable this option.")
 					.addPropertyNode("disablePasswordLogin")
 					.addConstraintViolation();

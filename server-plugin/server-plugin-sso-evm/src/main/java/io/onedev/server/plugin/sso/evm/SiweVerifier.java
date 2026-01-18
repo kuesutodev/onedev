@@ -1,4 +1,4 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.evm;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;

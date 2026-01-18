@@ -237,7 +237,12 @@
 		</dependency>
 		<dependency>
 			<groupId>io.onedev</groupId>
-			<artifactId>server-plugin-sso-web3</artifactId>
+			<artifactId>server-plugin-sso-evm</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.onedev</groupId>
+			<artifactId>server-plugin-sso-solana</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>

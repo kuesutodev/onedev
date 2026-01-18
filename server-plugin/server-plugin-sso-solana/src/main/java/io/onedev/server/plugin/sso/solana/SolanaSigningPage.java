@@ -1,8 +1,7 @@
-package io.onedev.server.plugin.sso.web3;
+package io.onedev.server.plugin.sso.solana;
 
 import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
-import org.apache.wicket.markup.head.JavaScriptHeaderItem;
 import org.apache.wicket.markup.html.basic.Label;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.request.mapper.parameter.PageParameters;
@@ -13,12 +12,12 @@ import io.onedev.server.web.page.security.SsoProcessPage;
 import io.onedev.server.web.page.simple.SimplePage;
 
 /**
- * Wicket page that handles Web3 wallet connection and message signing.
+ * Wicket page that handles Solana wallet connection and message signing.
  * 
- * This page is displayed when a user initiates Web3 authentication.
- * It uses JavaScript to connect to the user's wallet and sign the SIWE message.
+ * This page is displayed when a user initiates Solana authentication.
+ * It uses JavaScript to connect to the user's wallet (Phantom, etc.) and sign the SIWS message.
  */
-public class Web3SigningPage extends SimplePage {
+public class SolanaSigningPage extends SimplePage {
 
 	private static final long serialVersionUID = 1L;
 
@@ -30,7 +29,7 @@ public class Web3SigningPage extends SimplePage {
 	private final String domain;
 	private final String uri;
 
-	public Web3SigningPage(PageParameters params) {
+	public SolanaSigningPage(PageParameters params) {
 		super(params);
 		
 		this.providerName = params.get("provider").toString();
@@ -79,68 +78,46 @@ public class Web3SigningPage extends SimplePage {
 		}
 	}
 
-	/**
-	 * Returns the nonce for use in the HTML template.
-	 */
 	public String getNonce() {
 		return nonce;
 	}
 
-	/**
-	 * Returns the statement for use in the HTML template.
-	 */
 	public String getStatement() {
 		return statement != null ? statement : "Sign in to OneDev";
 	}
 
-	/**
-	 * Returns the expiration time in seconds.
-	 */
 	public int getExpiration() {
 		return expiration;
 	}
 
-	/**
-	 * Returns the callback URL for form submission.
-	 */
 	public String getCallbackUrl() {
 		return callbackUrl;
 	}
 
-	/**
-	 * Returns the domain for the SIWE message.
-	 */
 	public String getDomain() {
 		return domain;
 	}
 
-	/**
-	 * Returns the URI for the SIWE message.
-	 */
 	public String getUri() {
 		return uri;
 	}
 
 	@Override
 	protected String getTitle() {
-		return "Sign In with Ethereum";
+		return "Sign In with Solana";
 	}
 
 	@Override
 	protected String getSubTitle() {
-		return "Connect your wallet to authenticate";
+		return "Connect your Solana wallet to authenticate";
 	}
 
 	@Override
 	public void renderHead(IHeaderResponse response) {
 		super.renderHead(response);
 		
-		// Add ethers.js from unpkg CDN (more reliable)
-		response.render(JavaScriptHeaderItem.forUrl(
-			"https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js", "ethers-js"));
-		
 		// Add basic styles
-		response.render(CssHeaderItem.forCSS(getStyles(), "web3-signin-styles"));
+		response.render(CssHeaderItem.forCSS(getStyles(), "solana-signin-styles"));
 	}
 
 	private String getStyles() {
@@ -185,7 +162,7 @@ public class Web3SigningPage extends SimplePage {
 				font-size: 16px;
 				font-weight: 600;
 				cursor: pointer;
-				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				background: linear-gradient(135deg, #9945FF 0%, #14F195 100%);
 				color: white;
 				border: none;
 				border-radius: 12px;
@@ -194,7 +171,7 @@ public class Web3SigningPage extends SimplePage {
 			}
 			.wallet-btn:hover {
 				transform: translateY(-2px);
-				box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+				box-shadow: 0 6px 20px rgba(153, 69, 255, 0.4);
 			}
 			.wallet-btn:disabled {
 				background: #ccc;

@@ -76,6 +76,7 @@
 		<module>server-plugin-pack-nuget</module>
 		<module>server-plugin-pack-pypi</module>
 		<module>server-plugin-pack-gem</module>
-		<module>server-plugin-sso-web3</module>
+		<module>server-plugin-sso-evm</module>
+		<module>server-plugin-sso-solana</module>
     </modules>
 </project>
