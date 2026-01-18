@@ -1,0 +1,28 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<artifactId>server-plugin-sso-web3</artifactId>
+	<parent>
+		<groupId>io.onedev</groupId>
+		<artifactId>server-plugin</artifactId>
+		<version>14.0.7</version>
+	</parent>
+	<properties>
+		<moduleClass>io.onedev.server.plugin.sso.web3.Web3Module</moduleClass>
+	</properties>
+	<dependencies>
+		<!-- Web3j for Ethereum signature verification -->
+		<dependency>
+			<groupId>org.web3j</groupId>
+			<artifactId>crypto</artifactId>
+			<version>4.10.3</version>
+			<exclusions>
+				<!-- Exclude conflicting dependencies -->
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+	</dependencies>
+</project>

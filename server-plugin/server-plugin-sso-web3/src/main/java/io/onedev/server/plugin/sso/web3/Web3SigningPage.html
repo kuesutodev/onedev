@@ -1,0 +1,282 @@
+<wicket:extend>
+    <style>
+        .web3-container {
+            max-width: 400px;
+            margin: 30px auto;
+        }
+        .wallet-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .wallet-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .wallet-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .wallet-btn .icon {
+            font-size: 24px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status.info {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .hidden {
+            display: none;
+        }
+        .address-display {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        .cancel-link {
+            display: block;
+            margin-top: 20px;
+            color: #666;
+            text-decoration: none;
+        }
+        .cancel-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+    <div class="web3-container">
+        <button id="connectBtn" class="wallet-btn">
+            <span class="icon">🦊</span>
+            <span>Connect Wallet</span>
+        </button>
+        
+        <div id="addressDisplay" class="address-display hidden"></div>
+        
+        <div id="status" class="status hidden"></div>
+        
+        <!-- Hidden form to POST credentials back to OneDev -->
+        <form id="callbackForm" method="POST" wicket:id="callbackForm">
+            <input type="hidden" name="message" id="messageInput">
+            <input type="hidden" name="signature" id="signatureInput">
+        </form>
+        
+        <!-- Hidden spans for Wicket to inject values -->
+        <span wicket:id="nonce" id="cfg-nonce" class="hidden"></span>
+        <span wicket:id="statement" id="cfg-statement" class="hidden"></span>
+        <span wicket:id="domain" id="cfg-domain" class="hidden"></span>
+        <span wicket:id="uri" id="cfg-uri" class="hidden"></span>
+        <span wicket:id="callbackUrl" id="cfg-callbackUrl" class="hidden"></span>
+        <span wicket:id="expiration" id="cfg-expiration" class="hidden"></span>
+        
+        <a href="javascript:history.back()" class="cancel-link">Cancel and go back</a>
+    </div>
+    
+    <!-- Load ethers.js from CDN -->
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    
+    <script>
+        (function() {
+            // Read configuration from hidden spans
+            function getConfig() {
+                return {
+                    nonce: document.getElementById('cfg-nonce').textContent,
+                    statement: document.getElementById('cfg-statement').textContent,
+                    domain: document.getElementById('cfg-domain').textContent,
+                    uri: document.getElementById('cfg-uri').textContent,
+                    callbackUrl: document.getElementById('cfg-callbackUrl').textContent,
+                    expirationSeconds: parseInt(document.getElementById('cfg-expiration').textContent) || 300
+                };
+            }
+        
+            function showStatus(message, type) {
+                var status = document.getElementById('status');
+                status.textContent = message;
+                status.className = 'status ' + type;
+                status.classList.remove('hidden');
+            }
+        
+            function hideStatus() {
+                document.getElementById('status').classList.add('hidden');
+            }
+        
+            function setButtonState(text, disabled) {
+                var btn = document.getElementById('connectBtn');
+                btn.querySelector('span:last-child').textContent = text;
+                btn.disabled = disabled;
+            }
+        
+            function showAddress(address) {
+                var display = document.getElementById('addressDisplay');
+                display.textContent = address;
+                display.classList.remove('hidden');
+            }
+        
+            /**
+             * Builds a SIWE message following EIP-4361 format
+             */
+            function buildSiweMessage(address, chainId, config) {
+                var now = new Date();
+                var expiration = new Date(now.getTime() + config.expirationSeconds * 1000);
+            
+            return config.domain + ' wants you to sign in with your Ethereum account:\n' +
+address + '\n\n' +
+config.statement + '\n\n' +
+'URI: ' + config.uri + '\n' +
+'Version: 1\n' +
+'Chain ID: ' + chainId + '\n' +
+'Nonce: ' + config.nonce + '\n' +
+'Issued At: ' + now.toISOString() + '\n' +
+'Expiration Time: ' + expiration.toISOString();
+            }
+        
+            /**
+             * Main function to connect wallet and sign SIWE message
+             */
+            async function connectAndSign() {
+                hideStatus();
+                var config = getConfig();
+                
+                try {
+                    // Check for Web3 provider
+                    if (typeof window.ethereum === 'undefined') {
+                        showStatus('No Web3 wallet detected. Please install MetaMask or another Web3 wallet.', 'error');
+                        return;
+                    }
+                    
+                    setButtonState('Connecting...', true);
+                    showStatus('Requesting wallet connection...', 'info');
+                    
+                    // Create provider and request accounts
+                    var provider = new ethers.providers.Web3Provider(window.ethereum);
+                    var accounts = await provider.send('eth_requestAccounts', []);
+                    
+                    if (!accounts || accounts.length === 0) {
+                        throw new Error('No accounts found. Please unlock your wallet.');
+                    }
+                    
+                    var address = accounts[0];
+                    var signer = provider.getSigner();
+                    
+                    // Get chain ID
+                    var network = await provider.getNetwork();
+                    var chainId = network.chainId;
+                    
+                    // Show connected address
+                    var checksumAddress = ethers.utils.getAddress(address);
+                    showAddress(checksumAddress);
+                    
+                    setButtonState('Signing...', true);
+                    showStatus('Please sign the message in your wallet...', 'info');
+                    
+                    // Build SIWE message
+                    var message = buildSiweMessage(checksumAddress, chainId, config);
+                    
+                    // Request signature
+                    var signature = await signer.signMessage(message);
+                    
+                    setButtonState('Verifying...', true);
+                    showStatus('Verifying signature...', 'success');
+                    
+                    // Submit to server
+                    document.getElementById('messageInput').value = message;
+                    document.getElementById('signatureInput').value = signature;
+                    
+                    // Update form action and submit
+                    var form = document.getElementById('callbackForm');
+                    form.action = config.callbackUrl;
+                    form.submit();
+                    
+                } catch (error) {
+                    console.error('Web3 authentication error:', error);
+                    setButtonState('Connect Wallet', false);
+                    
+                    // Handle specific error cases
+                    if (error.code === 4001) {
+                        showStatus('Connection request was rejected. Please try again.', 'error');
+                    } else if (error.code === -32002) {
+                        showStatus('Please check your wallet for a pending connection request.', 'info');
+                    } else if (error.message && error.message.includes('user rejected')) {
+                        showStatus('Signature request was rejected. Please try again.', 'error');
+                    } else {
+                        showStatus(error.message || 'An error occurred. Please try again.', 'error');
+                    }
+                }
+            }
+        
+            // Check for existing connection
+            async function checkExistingConnection() {
+                if (typeof window.ethereum !== 'undefined') {
+                    try {
+                        var accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                        if (accounts && accounts.length > 0) {
+                            showStatus('Wallet detected. Click the button to sign in.', 'info');
+                        }
+                    } catch (e) {
+                        // Ignore errors during initial check
+                    }
+                }
+            }
+        
+            // Handle account changes
+            function setupAccountChangeListener() {
+                if (typeof window.ethereum !== 'undefined') {
+                    window.ethereum.on('accountsChanged', function(accounts) {
+                        if (accounts.length === 0) {
+                            hideStatus();
+                            document.getElementById('addressDisplay').classList.add('hidden');
+                            setButtonState('Connect Wallet', false);
+                        }
+                    });
+                }
+            }
+        
+            // Initialize when DOM is ready
+            function init() {
+                // Attach click handler to button
+                document.getElementById('connectBtn').addEventListener('click', connectAndSign);
+                
+                // Setup listeners and check for existing connection
+                setupAccountChangeListener();
+                checkExistingConnection();
+            }
+            
+            // Run init when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</wicket:extend>
