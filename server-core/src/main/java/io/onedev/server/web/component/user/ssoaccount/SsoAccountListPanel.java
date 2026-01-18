@@ -94,7 +94,20 @@ public class SsoAccountListPanel extends GenericPanel<User> {
 					@Override
 					protected void updateAjaxAttributes(AjaxRequestAttributes attributes) {
 						super.updateAjaxAttributes(attributes);
-						String message = _T("Do you really want to delete this SSO account?");
+						User user = getUser();
+						boolean isLastSsoAccount = user.getSsoAccounts().size() == 1;
+						boolean hasNoPassword = user.getPassword() == null;
+						
+						String message;
+						if (isLastSsoAccount && hasNoPassword) {
+							message = _T("WARNING: This is your last SSO connection and you have no password set. " +
+								"Removing it will lock you out of your account! " +
+								"Are you absolutely sure you want to continue?");
+						} else if (isLastSsoAccount) {
+							message = _T("This is your last SSO connection. You will need to use your password to log in after removing it. Continue?");
+						} else {
+							message = _T("Do you really want to delete this SSO account?");
+						}
 						attributes.getAjaxCallListeners().add(new ConfirmClickListener(message));
 					}
 

@@ -1,3 +1,15 @@
 <wicket:extend>
+	<div class="mb-4">
+		<h6><wicket:t>Link New Account</wicket:t></h6>
+		<div class="d-flex flex-wrap gap-3">
+			<span wicket:id="linkButtons">
+				<a wicket:id="linkButton" class="btn btn-outline-primary d-flex align-items-center gap-2">
+					<img wicket:id="image" style="width: 24px; height: 24px;" />
+					<span wicket:id="label"></span>
+				</a>
+			</span>
+		</div>
+	</div>
+	<hr class="my-4" />
 	<div wicket:id="accountList"></div>
 </wicket:extend>

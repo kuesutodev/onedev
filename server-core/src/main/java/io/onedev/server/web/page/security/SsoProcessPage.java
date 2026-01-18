@@ -71,6 +71,9 @@ public class SsoProcessPage extends SimplePage {
 	private static final String PARAM_STAGE = "stage";
 	
 	private static final String SESSION_ATTR_REDIRECT_URL = "redirectUrl";
+	
+	/** Session attribute to indicate linking mode - contains the user ID to link to */
+	public static final String SESSION_ATTR_LINK_MODE = "ssoLinkUserId";
 
 	private static final Logger logger = LoggerFactory.getLogger(SsoProcessPage.class);
 
@@ -134,6 +137,38 @@ public class SsoProcessPage extends SimplePage {
 				throw new RedirectToUrlException(getProvider().getConnector().buildAuthUrl(providerName));
 			} else {
 				authenticated = getProvider().getConnector().handleAuthResponse(providerName);
+				
+				// Check if this is a link mode request (user is already logged in and wants to link account)
+				Long linkUserId = (Long) Session.get().getAttribute(SESSION_ATTR_LINK_MODE);
+				if (linkUserId != null) {
+					Session.get().setAttribute(SESSION_ATTR_LINK_MODE, null); // Clear the flag
+					
+					transactionService.run(() -> {
+						User userToLink = userService.load(linkUserId);
+						
+						// Check if this SSO subject is already linked to another account
+						var existingSsoAccount = ssoAccountService.find(getProvider(), authenticated.getSubject());
+						if (existingSsoAccount != null) {
+							if (existingSsoAccount.getUser().getId().equals(linkUserId)) {
+								throw new AuthenticationException(_T("This SSO account is already linked to your account"));
+							} else {
+								throw new AuthenticationException(_T("This SSO account is already linked to another user"));
+							}
+						}
+						
+						// Create the SSO account link
+						SsoAccount ssoAccount = new SsoAccount();
+						ssoAccount.setUser(userToLink);
+						ssoAccount.setProvider(getProvider());
+						ssoAccount.setSubject(authenticated.getSubject());
+						ssoAccountService.create(ssoAccount);
+					});
+					
+					// Redirect back to My SSO Accounts page
+					Session.get().success(_T("SSO account linked successfully"));
+					throw new RestartResponseException(io.onedev.server.web.page.my.ssoaccounts.MySsoAccountsPage.class);
+				}
+				
 				var aUser = transactionService.call(() -> {					
 					var ssoAccount = ssoAccountService.find(getProvider(), authenticated.getSubject());
 					if (ssoAccount != null) {
@@ -141,7 +176,9 @@ public class SsoProcessPage extends SimplePage {
 						if (user.getType() != ORDINARY || user.isDisabled()) {
 							ssoAccountService.delete(ssoAccount);
 						} else {
-							if (authenticated.getEmail() != null) {
+							// Skip email reconciliation for Web3 wallet placeholder emails
+							// These are auto-generated as address@wallet.local and shouldn't be synced
+							if (authenticated.getEmail() != null && !authenticated.getEmail().endsWith("@wallet.local")) {
 								var emailAddress = emailAddressService.findByValue(authenticated.getEmail());
 								if (emailAddress == null) {
 									emailAddress = new EmailAddress();
@@ -157,7 +194,7 @@ public class SsoProcessPage extends SimplePage {
 									user.addEmailAddress(emailAddress);
 									emailAddressService.update(emailAddress);
 								} else {
-									throw new AuthenticationException(MessageFormat.format(_T("Email address \"{0}\" used by account \"{1}\""), authenticated.getEmail(), user.getName()));
+									throw new AuthenticationException(MessageFormat.format(_T("Email address \"{0}\" used by account \"{1}\""), authenticated.getEmail(), emailAddress.getOwner().getName()));
 								}
 							}
 							syncGroupsAndSshKeys(user, false);
