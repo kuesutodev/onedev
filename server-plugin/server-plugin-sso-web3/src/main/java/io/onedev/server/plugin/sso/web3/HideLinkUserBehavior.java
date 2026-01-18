@@ -5,6 +5,10 @@ import org.apache.wicket.behavior.Behavior;
 import org.apache.wicket.markup.head.CssHeaderItem;
 import org.apache.wicket.markup.head.IHeaderResponse;
 
+import io.onedev.server.OneDev;
+import io.onedev.server.service.SsoProviderService;
+import io.onedev.server.web.page.security.SsoProcessPage;
+
 /**
  * Behavior that injects CSS to hide the "Link Existing User" tab on the SSO process page
  * when the user is signing in via Web3 wallet.
@@ -17,15 +21,29 @@ public class HideLinkUserBehavior extends Behavior {
 	public void renderHead(Component component, IHeaderResponse response) {
 		super.renderHead(component, response);
 		
-		// Hide the "Link Existing User" tab (second tab) on the SSO process page
-		String css = """
-			/* Hide the Link Existing User tab for Web3 SSO */
-			ul.nav-tabs > li:nth-child(2),
-			.nav-tabs > li:nth-child(2),
-			ul.tabs > li:nth-child(2) {
-				display: none !important;
+		// Check if this is a Web3 SSO provider by examining the page parameters
+		if (component instanceof SsoProcessPage) {
+			SsoProcessPage page = (SsoProcessPage) component;
+			String providerName = page.getPageParameters().get("provider").toOptionalString();
+			
+			if (providerName != null) {
+				try {
+					var provider = OneDev.getInstance(SsoProviderService.class).find(providerName);
+					if (provider != null && provider.getConnector() instanceof Web3Connector) {
+						// Hide the entire tabs section since we only have one option
+						String css = """
+							/* Hide entire tabs for Web3 SSO - only one option */
+							ul.tabs.nav.nav-tabs,
+							ul.tabs {
+								display: none !important;
+							}
+						""";
+						response.render(CssHeaderItem.forCSS(css, "web3-hide-link-user-css"));
+					}
+				} catch (Exception e) {
+					// Provider not found or error, skip hiding
+				}
 			}
-		""";
-		response.render(CssHeaderItem.forCSS(css, "web3-hide-link-user"));
+		}
 	}
 }

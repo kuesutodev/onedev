@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.validation.ConstraintValidatorContext;
 import javax.validation.constraints.NotEmpty;
 
 import org.apache.shiro.authc.AuthenticationException;
@@ -17,11 +18,15 @@ import org.apache.wicket.request.cycle.RequestCycle;
 import org.web3j.crypto.Keys;
 
 import io.onedev.server.OneDev;
+import io.onedev.server.annotation.ClassValidating;
 import io.onedev.server.annotation.Editable;
 import io.onedev.server.annotation.Multiline;
+import io.onedev.server.model.User;
 import io.onedev.server.model.support.administration.sso.SsoAuthenticated;
 import io.onedev.server.model.support.administration.sso.SsoConnector;
+import io.onedev.server.security.SecurityUtils;
 import io.onedev.server.service.SettingService;
+import io.onedev.server.validation.Validatable;
 
 /**
  * SSO Connector for Web3 wallet authentication using Sign-In with Ethereum (SIWE).
@@ -34,7 +39,8 @@ import io.onedev.server.service.SettingService;
 @Editable(name="Web3 Wallet (SIWE)", order=250, 
 	description="Sign in with Ethereum wallet using EIP-4361 (SIWE). " +
 				"Supports MetaMask and other Web3 wallets. No API keys required.")
-public class Web3Connector extends SsoConnector {
+@ClassValidating
+public class Web3Connector extends SsoConnector implements Validatable {
 
 	private static final long serialVersionUID = 1L;
 
@@ -50,6 +56,8 @@ public class Web3Connector extends SsoConnector {
 	private String allowedChainIds = "1,137,42161,10,56";
 	
 	private String buttonImageUrl;
+	
+	private boolean enableWhitelist = false;
 	
 	private String whitelistedAddresses;
 	
@@ -104,7 +112,7 @@ public class Web3Connector extends SsoConnector {
 		this.nonceExpirationSeconds = nonceExpirationSeconds;
 	}
 
-	@Editable(order=300, description="Comma-separated list of allowed EVM chain IDs. " +
+	@Editable(order=300, description="Comma-separated list of allowed EVM chain IDs, or '*' to allow any chain. " +
 			"Common values: 1 (Ethereum), 137 (Polygon), 42161 (Arbitrum), 10 (Optimism), 56 (BSC)")
 	@NotEmpty
 	public String getAllowedChainIds() {
@@ -115,9 +123,20 @@ public class Web3Connector extends SsoConnector {
 		this.allowedChainIds = allowedChainIds;
 	}
 
-	@Editable(order=400, name="Whitelisted Addresses", group="Access Control",
+	@Editable(order=400, name="Enable Address Whitelist", group="Access Control",
+		description="When enabled, only addresses in the whitelist below will be allowed to sign in. " +
+			"When disabled, any wallet address can authenticate.")
+	public boolean isEnableWhitelist() {
+		return enableWhitelist;
+	}
+
+	public void setEnableWhitelist(boolean enableWhitelist) {
+		this.enableWhitelist = enableWhitelist;
+	}
+
+	@Editable(order=450, name="Whitelisted Addresses", group="Access Control",
 		description="List of EVM addresses allowed to sign in (one per line). " +
-			"Leave empty to allow any address. Addresses are case-insensitive.")
+			"Only used when 'Enable Address Whitelist' is checked. Addresses are case-insensitive.")
 	@Multiline
 	public String getWhitelistedAddresses() {
 		return whitelistedAddresses;
@@ -153,9 +172,16 @@ public class Web3Connector extends SsoConnector {
 	/**
 	 * Parses the allowed chain IDs from the configuration string.
 	 */
+	/**
+	 * Checks if all chains are allowed (wildcard '*' is used).
+	 */
+	public boolean isAllChainsAllowed() {
+		return allowedChainIds != null && allowedChainIds.trim().equals("*");
+	}
+
 	public List<Long> getParsedAllowedChainIds() {
 		List<Long> chainIds = new ArrayList<>();
-		if (allowedChainIds != null) {
+		if (allowedChainIds != null && !isAllChainsAllowed()) {
 			for (String id : allowedChainIds.split(",")) {
 				try {
 					chainIds.add(Long.parseLong(id.trim()));
@@ -186,13 +212,18 @@ public class Web3Connector extends SsoConnector {
 
 	/**
 	 * Checks if an address is whitelisted. Returns true if:
-	 * - No whitelist is configured (empty = allow all), OR
+	 * - Whitelist is disabled (enableWhitelist = false), OR
+	 * - Whitelist is enabled but empty (allow all), OR
 	 * - The address is in the whitelist
 	 */
 	public boolean isAddressWhitelisted(String address) {
+		// If whitelist is disabled, allow all addresses
+		if (!enableWhitelist) {
+			return true;
+		}
 		Set<String> whitelist = getParsedWhitelistedAddresses();
 		if (whitelist.isEmpty()) {
-			return true; // No whitelist = allow all
+			return true; // Empty whitelist = allow all
 		}
 		return whitelist.contains(address.toLowerCase());
 	}
@@ -248,10 +279,12 @@ public class Web3Connector extends SsoConnector {
 		// Validate the message
 		siwe.validate(expectedNonce, expectedDomain);
 		
-		// Validate chain ID
-		List<Long> allowed = getParsedAllowedChainIds();
-		if (!allowed.isEmpty() && !allowed.contains(siwe.getChainId())) {
-			throw new AuthenticationException("Unsupported blockchain network (Chain ID: " + siwe.getChainId() + ")");
+		// Validate chain ID (skip if wildcard '*' is used)
+		if (!isAllChainsAllowed()) {
+			List<Long> allowed = getParsedAllowedChainIds();
+			if (!allowed.isEmpty() && !allowed.contains(siwe.getChainId())) {
+				throw new AuthenticationException("Unsupported blockchain network (Chain ID: " + siwe.getChainId() + ")");
+			}
 		}
 		
 		// Verify the signature
@@ -336,6 +369,42 @@ public class Web3Connector extends SsoConnector {
 		} catch (Exception e) {
 			return value;
 		}
+	}
+
+	/**
+	 * Validates that an admin user has linked a Web3 account before disabling password login.
+	 * This prevents admins from accidentally locking themselves out.
+	 */
+	@Override
+	public boolean isValid(ConstraintValidatorContext context) {
+		if (disablePasswordLogin) {
+			// Check if the current user has a Web3 SSO account linked
+			User currentUser = SecurityUtils.getAuthUser();
+			if (currentUser == null) {
+				context.disableDefaultConstraintViolation();
+				context.buildConstraintViolationWithTemplate(
+					"You must be logged in to enable 'Disable Password Login'")
+					.addPropertyNode("disablePasswordLogin")
+					.addConstraintViolation();
+				return false;
+			}
+			
+			// Check if user has a Web3 SSO account linked
+			boolean hasWeb3Account = currentUser.getSsoAccounts().stream()
+				.anyMatch(account -> account.getProvider().getConnector() instanceof Web3Connector);
+			
+			if (!hasWeb3Account) {
+				context.disableDefaultConstraintViolation();
+				context.buildConstraintViolationWithTemplate(
+					"You must link your account to a Web3 wallet before enabling 'Disable Password Login'. " +
+					"First, save this connector without the option enabled, then log in using your Web3 wallet " +
+					"and link it to your account. After that, you can enable this option.")
+					.addPropertyNode("disablePasswordLogin")
+					.addConstraintViolation();
+				return false;
+			}
+		}
+		return true;
 	}
 
 }
