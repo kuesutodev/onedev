@@ -9,6 +9,23 @@
                     <a wicket:id="emailAddress"><span wicket:id="label"></span></a>
                 </div>
             </wicket:enclosure>
+            <div wicket:id="socialLinks" class="mt-3 d-flex justify-content-center gap-2">
+                <wicket:enclosure child="twitterLink">
+                    <a wicket:id="twitterLink" target="_blank" rel="noopener noreferrer" title="Twitter/X" class="btn btn-sm btn-outline-secondary">
+                        <wicket:svg href="brand-twitter" class="icon"/>
+                    </a>
+                </wicket:enclosure>
+                <wicket:enclosure child="discordLink">
+                    <a wicket:id="discordLink" target="_blank" rel="noopener noreferrer" title="Discord" class="btn btn-sm btn-outline-secondary">
+                        <wicket:svg href="brand-discord" class="icon"/>
+                    </a>
+                </wicket:enclosure>
+                <wicket:enclosure child="githubLink">
+                    <a wicket:id="githubLink" target="_blank" rel="noopener noreferrer" title="GitHub" class="btn btn-sm btn-outline-secondary">
+                        <wicket:svg href="brand-github" class="icon"/>
+                    </a>
+                </wicket:enclosure>
+            </div>
             <div wicket:id="note" class="mt-5"></div>
             <div class="mt-5 text-center">
                 <a wicket:id="enable" class="btn btn-sm btn-outline-primary mr-3"><wicket:t>Enable</wicket:t></a>

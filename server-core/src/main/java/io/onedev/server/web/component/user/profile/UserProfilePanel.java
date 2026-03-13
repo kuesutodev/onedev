@@ -220,6 +220,60 @@ public abstract class UserProfilePanel extends GenericPanel<User> {
             }.setVisible(false));
         }
 
+        // Social media links
+        var socialLinksContainer = new WebMarkupContainer("socialLinks");
+        add(socialLinksContainer);
+        
+        // Twitter/X link
+        String twitterHandle = user.getTwitterHandle();
+        if (twitterHandle != null && !twitterHandle.isBlank()) {
+            String handle = twitterHandle.startsWith("@") ? twitterHandle.substring(1) : twitterHandle;
+            socialLinksContainer.add(new WebMarkupContainer("twitterLink") {
+                @Override
+                protected void onComponentTag(ComponentTag tag) {
+                    super.onComponentTag(tag);
+                    tag.put("href", "https://twitter.com/" + handle);
+                }
+            });
+        } else {
+            socialLinksContainer.add(new WebMarkupContainer("twitterLink").setVisible(false));
+        }
+        
+        // Discord link (Discord doesn't have direct profile URLs, so we'll just show the username)
+        String discordName = user.getDiscordName();
+        if (discordName != null && !discordName.isBlank()) {
+            socialLinksContainer.add(new WebMarkupContainer("discordLink") {
+                @Override
+                protected void onComponentTag(ComponentTag tag) {
+                    super.onComponentTag(tag);
+                    tag.put("href", "https://discord.com/users/" + discordName);
+                    tag.put("title", "Discord: " + discordName);
+                }
+            });
+        } else {
+            socialLinksContainer.add(new WebMarkupContainer("discordLink").setVisible(false));
+        }
+        
+        // GitHub link
+        String githubUsername = user.getGithubUsername();
+        if (githubUsername != null && !githubUsername.isBlank()) {
+            socialLinksContainer.add(new WebMarkupContainer("githubLink") {
+                @Override
+                protected void onComponentTag(ComponentTag tag) {
+                    super.onComponentTag(tag);
+                    tag.put("href", "https://github.com/" + githubUsername);
+                }
+            });
+        } else {
+            socialLinksContainer.add(new WebMarkupContainer("githubLink").setVisible(false));
+        }
+        
+        // Hide the entire container if no social links are set
+        boolean hasSocialLinks = (twitterHandle != null && !twitterHandle.isBlank()) 
+                || (discordName != null && !discordName.isBlank()) 
+                || (githubUsername != null && !githubUsername.isBlank());
+        socialLinksContainer.setVisible(hasSocialLinks);
+
 		WebMarkupContainer noteContainer;
 		if (user.isDisabled()) {
 			if (user.getType() == SERVICE)
