@@ -84,10 +84,12 @@ import io.onedev.server.cluster.ClusterResource;
 import io.onedev.server.codequality.CodeProblemContribution;
 import io.onedev.server.codequality.LineCoverageContribution;
 import io.onedev.server.commandhandler.ApplyDatabaseConstraints;
+import io.onedev.server.commandhandler.BackupArchive;
 import io.onedev.server.commandhandler.BackupDatabase;
 import io.onedev.server.commandhandler.CheckDataVersion;
 import io.onedev.server.commandhandler.CleanDatabase;
 import io.onedev.server.commandhandler.ResetAdminPassword;
+import io.onedev.server.commandhandler.RestoreArchive;
 import io.onedev.server.commandhandler.RestoreDatabase;
 import io.onedev.server.commandhandler.Translate;
 import io.onedev.server.commandhandler.Upgrade;
@@ -912,10 +914,14 @@ public class CoreModule extends AbstractPluginModule {
 		if (Bootstrap.command != null) {
 			if (RestoreDatabase.COMMAND.equals(Bootstrap.command.getName()))
 				return RestoreDatabase.class;
+			else if (RestoreArchive.COMMAND.equals(Bootstrap.command.getName()))
+				return RestoreArchive.class;
 			else if (ApplyDatabaseConstraints.COMMAND.equals(Bootstrap.command.getName()))
 				return ApplyDatabaseConstraints.class;
 			else if (BackupDatabase.COMMAND.equals(Bootstrap.command.getName()))
 				return BackupDatabase.class;
+			else if (BackupArchive.COMMAND.equals(Bootstrap.command.getName()))
+				return BackupArchive.class;
 			else if (CheckDataVersion.COMMAND.equals(Bootstrap.command.getName()))
 				return CheckDataVersion.class;
 			else if (Upgrade.COMMAND.equals(Bootstrap.command.getName()))

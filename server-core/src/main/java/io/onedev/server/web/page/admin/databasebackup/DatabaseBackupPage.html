@@ -1,4 +1,5 @@
 <wicket:extend>
+	<div wicket:id="feedback"></div>
 	<div class="card">
 		<div class="card-body">
 			<wicket:enclosure child="leadServer">
@@ -7,7 +8,18 @@
 			<form wicket:id="backupSetting" class="leave-confirm">
 				<div wicket:id="editor" class="mb-4"></div>
 				<input type="submit" class="btn btn-primary dirty-aware mr-1" t:value="Save Settings">
-				<a wicket:id="backupNow" class="btn btn-light-primary"><wicket:t>Backup Now</wicket:t></a>
+				<a wicket:id="backupNow" class="btn btn-light-primary mr-1"><wicket:t>Database Backup</wicket:t></a>
+				<a wicket:id="backupArchiveNow" class="btn btn-light-primary mr-1"><wicket:t>Full Snapshot Backup</wicket:t></a>
+				<a wicket:id="backupArchiveShallowNow" class="btn btn-light-primary"><wicket:t>Shallow Snapshot Backup</wicket:t></a>
+			</form>
+		</div>
+	</div>
+	<div class="card mt-6">
+		<div class="card-body">
+			<div class="alert alert-light-danger mb-5"><wicket:t>Restoring a snapshot replaces the current database, repositories, attachments, and instance assets. The server will enter maintenance mode while restore is running.</wicket:t></div>
+			<form wicket:id="restoreArchive">
+				<input wicket:id="archive" type="file" class="form-control mb-4">
+				<button wicket:id="restore" type="submit" class="btn btn-danger"><wicket:t>Restore Snapshot</wicket:t></button>
 			</form>
 		</div>
 	</div>
