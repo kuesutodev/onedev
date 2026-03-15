@@ -26,10 +26,11 @@ import org.apache.wicket.model.LoadableDetachableModel;
 import org.apache.wicket.model.Model;
 
 import io.onedev.server.OneDev;
-import io.onedev.server.service.AuditService;
-import io.onedev.server.service.SsoAccountService;
 import io.onedev.server.model.SsoAccount;
 import io.onedev.server.model.User;
+import io.onedev.server.model.support.administration.sso.SsoAccountHelper;
+import io.onedev.server.service.AuditService;
+import io.onedev.server.service.SsoAccountService;
 import io.onedev.server.web.ajaxlistener.ConfirmClickListener;
 import io.onedev.server.web.component.datatable.DefaultDataTable;
 import io.onedev.server.web.page.user.UserPage;
@@ -78,12 +79,16 @@ public class SsoAccountListPanel extends GenericPanel<User> {
 			public void populateItem(Item<ICellPopulator<SsoAccount>> cellItem, String componentId, 
 					IModel<SsoAccount> rowModel) {
 				Fragment fragment = new Fragment(componentId, "actionFrag", SsoAccountListPanel.this);
+				var ssoAccount = rowModel.getObject();
 				
 				fragment.add(new AjaxLink<Void>("delete") {
 
 					@Override
 					public void onClick(AjaxRequestTarget target) {
-						var ssoAccount = rowModel.getObject();
+						if (SsoAccountHelper.wouldLeaveAdministratorWithoutWallet(getUser(), ssoAccount)) {
+							Session.get().error(_T("Administrator accounts must keep at least one linked wallet SSO account"));
+							return;
+						}
 						OneDev.getInstance(SsoAccountService.class).delete(ssoAccount);
 						if (getPage() instanceof UserPage)
 							OneDev.getInstance(AuditService.class).audit(null, "deleted SSO account \"" + ssoAccount.getProvider() + "/" + ssoAccount.getSubject() + "\" from account \"" + ssoAccount.getUser().getName() + "\"", null, null);
@@ -97,9 +102,12 @@ public class SsoAccountListPanel extends GenericPanel<User> {
 						User user = getUser();
 						boolean isLastSsoAccount = user.getSsoAccounts().size() == 1;
 						boolean hasNoPassword = user.getPassword() == null;
+						boolean isLastAdminWallet = SsoAccountHelper.wouldLeaveAdministratorWithoutWallet(user, ssoAccount);
 						
 						String message;
-						if (isLastSsoAccount && hasNoPassword) {
+						if (isLastAdminWallet) {
+							message = _T("This is the last linked wallet for an administrator account and can not be removed.");
+						} else if (isLastSsoAccount && hasNoPassword) {
 							message = _T("WARNING: This is your last SSO connection and you have no password set. " +
 								"Removing it will lock you out of your account! " +
 								"Are you absolutely sure you want to continue?");
@@ -109,6 +117,12 @@ public class SsoAccountListPanel extends GenericPanel<User> {
 							message = _T("Do you really want to delete this SSO account?");
 						}
 						attributes.getAjaxCallListeners().add(new ConfirmClickListener(message));
+					}
+
+					@Override
+					protected void onConfigure() {
+						super.onConfigure();
+						setVisible(!SsoAccountHelper.wouldLeaveAdministratorWithoutWallet(getUser(), ssoAccount));
 					}
 
 				});

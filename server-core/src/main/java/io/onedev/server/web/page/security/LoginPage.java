@@ -25,7 +25,6 @@ import org.apache.wicket.markup.html.form.CheckBox;
 import org.apache.wicket.markup.html.form.Form;
 import org.apache.wicket.markup.html.form.PasswordTextField;
 import org.apache.wicket.markup.html.form.TextField;
-import org.apache.wicket.markup.html.image.ExternalImage;
 import org.apache.wicket.markup.html.link.ExternalLink;
 import org.apache.wicket.markup.html.link.Link;
 import org.apache.wicket.markup.html.panel.Fragment;
@@ -198,7 +197,6 @@ public class LoginPage extends SimplePage {
 		for (SsoProvider provider: ssoProviders) {
 			ExternalLink ssoButton = new ExternalLink(ssoButtonsView.newChildId(), 
 					Model.of(serverUrl + "/" + MOUNT_PATH + "/" + STAGE_INITIATE + "/" + provider.getName()));
-			ssoButton.add(new ExternalImage("image", provider.getConnector().getButtonImageUrl()));
 			ssoButton.add(new Label("label", MessageFormat.format(_T("Login with {0}"), provider.getName())));
 			ssoButtonsView.add(ssoButton);
 		}

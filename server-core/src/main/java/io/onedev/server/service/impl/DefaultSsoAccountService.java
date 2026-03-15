@@ -4,8 +4,10 @@ import javax.inject.Singleton;
 
 import org.hibernate.criterion.Restrictions;
 
+import io.onedev.commons.utils.ExplicitException;
 import io.onedev.server.model.SsoAccount;
 import io.onedev.server.model.SsoProvider;
+import io.onedev.server.model.support.administration.sso.SsoAccountHelper;
 import io.onedev.server.persistence.annotation.Sessional;
 import io.onedev.server.persistence.annotation.Transactional;
 import io.onedev.server.persistence.dao.EntityCriteria;
@@ -18,6 +20,14 @@ public class DefaultSsoAccountService extends BaseEntityService<SsoAccount> impl
 	@Override
 	public void create(SsoAccount ssoAccount) {
 		dao.persist(ssoAccount);
+	}
+
+	@Transactional
+	@Override
+	public void delete(SsoAccount ssoAccount) {
+		if (SsoAccountHelper.wouldLeaveAdministratorWithoutWallet(ssoAccount.getUser(), ssoAccount))
+			throw new ExplicitException("Administrator accounts must keep at least one linked wallet SSO account");
+		super.delete(ssoAccount);
 	}
 
 	@Sessional

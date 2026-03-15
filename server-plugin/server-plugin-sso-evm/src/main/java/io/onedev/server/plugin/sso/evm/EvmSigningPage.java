@@ -90,7 +90,7 @@ public class EvmSigningPage extends SimplePage {
 	 * Returns the statement for use in the HTML template.
 	 */
 	public String getStatement() {
-		return statement != null ? statement : "Sign in to OneDev";
+		return statement != null ? statement : "Sign in to GSG";
 	}
 
 	/**
@@ -123,7 +123,7 @@ public class EvmSigningPage extends SimplePage {
 
 	@Override
 	protected String getTitle() {
-		return "Sign In with Ethereum";
+		return "Sign In with GSG Wallet";
 	}
 
 	@Override

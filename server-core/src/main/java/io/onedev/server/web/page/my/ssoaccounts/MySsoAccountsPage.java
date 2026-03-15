@@ -12,10 +12,7 @@ import javax.inject.Inject;
 
 import org.apache.wicket.Component;
 import org.apache.wicket.Session;
-import org.apache.wicket.markup.ComponentTag;
-import org.apache.wicket.markup.html.WebMarkupContainer;
 import org.apache.wicket.markup.html.basic.Label;
-import org.apache.wicket.markup.html.image.ExternalImage;
 import org.apache.wicket.markup.html.link.Link;
 import org.apache.wicket.markup.html.list.ListItem;
 import org.apache.wicket.markup.html.list.ListView;
@@ -68,7 +65,6 @@ public class MySsoAccountsPage extends MyPage {
 						throw new RedirectToUrlException(linkUrl);
 					}
 				};
-				linkButton.add(new ExternalImage("image", provider.getConnector().getButtonImageUrl()));
 				linkButton.add(new Label("label", MessageFormat.format(_T("Link {0}"), providerName)));
 				item.add(linkButton);
 			}

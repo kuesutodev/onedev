@@ -22,6 +22,7 @@ import io.onedev.server.annotation.ClassValidating;
 import io.onedev.server.annotation.Editable;
 import io.onedev.server.annotation.Multiline;
 import io.onedev.server.model.User;
+import io.onedev.server.model.support.administration.sso.SsoAccountHelper;
 import io.onedev.server.model.support.administration.sso.SsoAuthenticated;
 import io.onedev.server.model.support.administration.sso.SsoConnector;
 import io.onedev.server.security.SecurityUtils;
@@ -50,7 +51,7 @@ public class EvmConnector extends SsoConnector implements Validatable {
 
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-	private String signInStatement = "Sign in to OneDev";
+	private String signInStatement = "Sign in to GSG";
 	
 	private int nonceExpirationSeconds = 300;
 	
@@ -157,6 +158,16 @@ public class EvmConnector extends SsoConnector implements Validatable {
 
 	public void setDisablePasswordLogin(boolean disablePasswordLogin) {
 		this.disablePasswordLogin = disablePasswordLogin;
+	}
+
+	@Override
+	public boolean isWalletConnector() {
+		return true;
+	}
+
+	@Override
+	public boolean isPasswordAuthenticationDisabled() {
+		return disablePasswordLogin;
 	}
 
 	@Editable(order=10000, group="More Settings", description="Image URL for the login button")
@@ -312,7 +323,7 @@ public class EvmConnector extends SsoConnector implements Validatable {
 		// Generate a wallet-based email to satisfy the system's email requirement
 		// This email is not usable for actual communication but allows account creation
 		// Format: 0x1234abcd@evm.local (using first 10 chars of address)
-		String walletEmail = address.toLowerCase() + "@evm.local";
+		String walletEmail = address.toLowerCase() + "@gsg.local";
 		
 		// Return the authenticated user info
 		// subject = full address (unique identifier)
@@ -391,14 +402,13 @@ public class EvmConnector extends SsoConnector implements Validatable {
 			}
 			
 			// Check if user has a EVM SSO account linked
-			boolean hasEvmAccount = currentUser.getSsoAccounts().stream()
-				.anyMatch(account -> account.getProvider().getConnector() instanceof EvmConnector);
+			boolean hasEvmAccount = SsoAccountHelper.hasLinkedWallet(currentUser);
 			
 			if (!hasEvmAccount) {
 				context.disableDefaultConstraintViolation();
 				context.buildConstraintViolationWithTemplate(
-					"You must link your account to a EVM wallet before enabling 'Disable Password Login'. " +
-					"First, save this connector without the option enabled, then log in using your EVM wallet " +
+					"You must link your account to at least one wallet before enabling 'Disable Password Login'. " +
+					"First, save this connector without the option enabled, then log in using your wallet " +
 					"and link it to your account. After that, you can enable this option.")
 					.addPropertyNode("disablePasswordLogin")
 					.addConstraintViolation();

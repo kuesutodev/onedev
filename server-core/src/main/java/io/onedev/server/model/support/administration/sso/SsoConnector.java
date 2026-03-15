@@ -14,6 +14,14 @@ public abstract class SsoConnector implements Serializable {
 	
 	private static final long serialVersionUID = 1L;
 
+	public boolean isWalletConnector() {
+		return false;
+	}
+
+	public boolean isPasswordAuthenticationDisabled() {
+		return false;
+	}
+
 	public abstract String getButtonImageUrl();
 	
 	public final URI getCallbackUri(String providerName) {

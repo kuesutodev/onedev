@@ -19,6 +19,7 @@ import io.onedev.server.annotation.ClassValidating;
 import io.onedev.server.annotation.Editable;
 import io.onedev.server.annotation.Multiline;
 import io.onedev.server.model.User;
+import io.onedev.server.model.support.administration.sso.SsoAccountHelper;
 import io.onedev.server.model.support.administration.sso.SsoAuthenticated;
 import io.onedev.server.model.support.administration.sso.SsoConnector;
 import io.onedev.server.security.SecurityUtils;
@@ -46,7 +47,7 @@ public class SolanaConnector extends SsoConnector implements Validatable {
 
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-	private String signInStatement = "Sign in to OneDev";
+	private String signInStatement = "Sign in to GSG";
 	
 	private int nonceExpirationSeconds = 300;
 	
@@ -153,6 +154,16 @@ public class SolanaConnector extends SsoConnector implements Validatable {
 
 	public void setDisablePasswordLogin(boolean disablePasswordLogin) {
 		this.disablePasswordLogin = disablePasswordLogin;
+	}
+
+	@Override
+	public boolean isWalletConnector() {
+		return true;
+	}
+
+	@Override
+	public boolean isPasswordAuthenticationDisabled() {
+		return disablePasswordLogin;
 	}
 
 	@Editable(order=10000, group="More Settings", description="Image URL for the login button")
@@ -386,14 +397,13 @@ public class SolanaConnector extends SsoConnector implements Validatable {
 			}
 			
 			// Check if user has a Solana SSO account linked
-			boolean hasSolanaAccount = currentUser.getSsoAccounts().stream()
-				.anyMatch(account -> account.getProvider().getConnector() instanceof SolanaConnector);
+			boolean hasSolanaAccount = SsoAccountHelper.hasLinkedWallet(currentUser);
 			
 			if (!hasSolanaAccount) {
 				context.disableDefaultConstraintViolation();
 				context.buildConstraintViolationWithTemplate(
-					"You must link your account to a Solana wallet before enabling 'Disable Password Login'. " +
-					"First, save this connector without the option enabled, then log in using your Solana wallet " +
+					"You must link your account to at least one wallet before enabling 'Disable Password Login'. " +
+					"First, save this connector without the option enabled, then log in using your wallet " +
 					"and link it to your account. After that, you can enable this option.")
 					.addPropertyNode("disablePasswordLogin")
 					.addConstraintViolation();

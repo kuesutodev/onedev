@@ -293,13 +293,25 @@ public abstract class BasePage extends WebPage {
 
 		add(new WebMarkupContainer("siteIcon") {
 
+			private File getSiteIconFile() {
+				var assetsDir = new File(Bootstrap.getSiteDir(), "assets");
+				var svgFile = new File(assetsDir, "logo.svg");
+				if (svgFile.exists())
+					return svgFile;
+				return new File(assetsDir, "logo.png");
+			}
+
 			@Override
 			protected void onComponentTag(ComponentTag tag) {
 				super.onComponentTag(tag);
 
-				File logoFile = new File(Bootstrap.getSiteDir(), "assets/logo.png");
+				File logoFile = getSiteIconFile();
 				if (logoFile.exists())
-					tag.put("href", "/logo.png?v=" + logoFile.lastModified());
+					tag.put("href", "/" + logoFile.getName() + "?v=" + logoFile.lastModified());
+				if (logoFile.getName().endsWith(".svg"))
+					tag.put("type", "image/svg+xml");
+				else
+					tag.put("type", "image/png");
 			}
 
 		});

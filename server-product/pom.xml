@@ -17,11 +17,6 @@
 		</dependency>
 		<dependency>
 			<groupId>io.onedev</groupId>
-			<artifactId>server-ee</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>io.onedev</groupId>
 			<artifactId>server-plugin-report-jest</artifactId>
 			<version>${project.version}</version>
 		</dependency>
@@ -315,4 +310,22 @@
 		<executables>bin/*.sh, boot/wrapper-*</executables>
 		<moduleClass>io.onedev.server.product.ProductModule</moduleClass>
 	</properties>
+	<profiles>
+		<profile>
+			<id>with-ee</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>io.onedev</groupId>
+					<artifactId>server-ee</artifactId>
+					<version>${project.version}</version>
+				</dependency>
+			</dependencies>
+		</profile>
+		<profile>
+			<id>ce</id>
+		</profile>
+	</profiles>
 </project>

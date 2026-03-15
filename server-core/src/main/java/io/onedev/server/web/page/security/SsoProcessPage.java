@@ -140,17 +140,23 @@ public class SsoProcessPage extends SimplePage {
 				
 				// Check if this is a link mode request (user is already logged in and wants to link account)
 				Long linkUserId = (Long) Session.get().getAttribute(SESSION_ATTR_LINK_MODE);
+				if (linkUserId == null) {
+					var currentUser = SecurityUtils.getAuthUser();
+					if (currentUser != null && currentUser.getType() == ORDINARY && !currentUser.isDisabled())
+						linkUserId = currentUser.getId();
+				}
 				if (linkUserId != null) {
+					final Long resolvedLinkUserId = linkUserId;
 					Session.get().setAttribute(SESSION_ATTR_LINK_MODE, null); // Clear the flag
 					
 					transactionService.run(() -> {
-						User userToLink = userService.load(linkUserId);
+						User userToLink = userService.load(resolvedLinkUserId);
 						
 						// Check if this SSO subject is already linked to another account
 						var existingSsoAccount = ssoAccountService.find(getProvider(), authenticated.getSubject());
 						if (existingSsoAccount != null) {
-							if (existingSsoAccount.getUser().getId().equals(linkUserId)) {
-								throw new AuthenticationException(_T("This SSO account is already linked to your account"));
+							if (existingSsoAccount.getUser().getId().equals(resolvedLinkUserId)) {
+								return;
 							} else {
 								throw new AuthenticationException(_T("This SSO account is already linked to another user"));
 							}

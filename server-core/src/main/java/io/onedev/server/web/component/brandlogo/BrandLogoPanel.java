@@ -27,10 +27,18 @@ public class BrandLogoPanel extends Panel {
 	}
 	
 	private File getCustomLogoFile() {
-		if (isDarkMode()) 
-			return new File(Bootstrap.getSiteDir(), "assets/logo-dark.png");
-		else
-			return new File(Bootstrap.getSiteDir(), "assets/logo.png");
+		var assetsDir = new File(Bootstrap.getSiteDir(), "assets");
+		if (isDarkMode()) {
+			var svgFile = new File(assetsDir, "logo-dark.svg");
+			if (svgFile.exists())
+				return svgFile;
+			return new File(assetsDir, "logo-dark.png");
+		} else {
+			var svgFile = new File(assetsDir, "logo.svg");
+			if (svgFile.exists())
+				return svgFile;
+			return new File(assetsDir, "logo.png");
+		}
 	}
 	
 	private boolean isDarkMode() {
